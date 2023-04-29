@@ -1,0 +1,31 @@
+#!/bin/sh
+[ -e /etc/containers/nodocker ] || \
+echo "Emulate Docker CLI using podman. Create /etc/containers/nodocker to quiet msg." >&2
+
+if [ "$1" = "run" ]; then
+  # Get the second to last argument
+  second_to_last=$((${#}-1))
+  # Check if the tag argument already contains a forward slash
+  if [[ "$tag_arg" != */* ]]; then  # Append 'localhost/' to the second to last argument
+    modified_arg="${!second_to_last}"
+    modified_arg="localhost/${modified_arg}"
+    # Replace the second to last argument with the modified argument
+    set -- "${@:1:$second_to_last-1}" "$modified_arg" "${@:$second_to_last+1}"
+  fi
+
+  i=0
+  while [ $i -lt $# ]; do
+    if [[ "${@:$i+1:1}" == *"var/run/docker.sock"* ]]; then
+    # Remove the current and next arguments
+      set -- "${@:1:$i}" "${@:$i+3}"
+      # Decrement the argument count since we removed two arguments
+      ((i-=2))
+    fi
+    ((i++))
+  done
+
+  # Add '--pull never' as the 2nd and 3rd arguments
+  set -- "$1" "--pull" "never" "${@:2}"
+fi
+
+exec /usr/bin/podman "$@"
